@@ -1,32 +1,13 @@
 //
-//  AddView.swift
+//  MoveView.swift
 //  Ams Tel
 //
-//  Created by makrowave on 27/03/2025.
+//  Created by makrowave on 28/03/2025.
 //
 
 import SwiftUI
 
-
-let samplePlaces = [
-    ListItem(id: 1, value: "Sklep 1"),
-    ListItem(id: 2, value: "Sklep 2"),
-    ListItem(id: 3, value: "Sklep 3"),
-    ListItem(id: 4, value: "Magazyn 1"),
-    ListItem(id: 5, value: "Magazyn 2"),
-]
-
-let sampleStatuses = [
-    ListItem(id: 1, value: "Złożony"),
-    ListItem(id: 2, value: "Niezłożony"),
-    ListItem(id: 4, value: "Gwarancja"),
-    ListItem(id: 5, value: "Zadatek"),
-    ListItem(id: 6, value: "Gaming"),
-]
-
-
-
-struct AddView: View {
+struct MoveView: View {
     @StateObject var cameraViewModel = CameraViewModel()
     var body: some View {
             VStack {
@@ -47,8 +28,8 @@ struct AddView: View {
                 )
                 NavSelectionButton(
                     text: cameraViewModel.userPlace?.value,
-                    title: "Miejsce",
-                    icon: "building.fill",
+                    title: "Z",
+                    icon: "iphone.and.arrow.right.outward",
                     placeholder: "Miejsce",
                     hasBorder: true,
                     destination: AnyView(
@@ -56,6 +37,19 @@ struct AddView: View {
                             viewModel: cameraViewModel,
                             options: samplePlaces,
                             keyPath: \.userPlace)
+                    )
+                )
+                NavSelectionButton(
+                    text: cameraViewModel.userPlace?.value,
+                    title: "Do",
+                    icon: "iphone.and.arrow.right.outward",
+                    placeholder: "Miejsce",
+                    hasBorder: true,
+                    destination: AnyView(
+                        SelectionPage<ListItem, CameraViewModel>(
+                            viewModel: cameraViewModel,
+                            options: samplePlaces,
+                            keyPath: \.destinationPlace)
                     )
                 )
                 NavSelectionButton(
@@ -85,6 +79,6 @@ struct AddView: View {
 
 #Preview {
     NavigationStack {
-        AddView()
+        MoveView()
     }
 }

@@ -1,32 +1,13 @@
 //
-//  AddView.swift
+//  SellView.swift
 //  Ams Tel
 //
-//  Created by makrowave on 27/03/2025.
+//  Created by makrowave on 28/03/2025.
 //
 
 import SwiftUI
 
-
-let samplePlaces = [
-    ListItem(id: 1, value: "Sklep 1"),
-    ListItem(id: 2, value: "Sklep 2"),
-    ListItem(id: 3, value: "Sklep 3"),
-    ListItem(id: 4, value: "Magazyn 1"),
-    ListItem(id: 5, value: "Magazyn 2"),
-]
-
-let sampleStatuses = [
-    ListItem(id: 1, value: "Złożony"),
-    ListItem(id: 2, value: "Niezłożony"),
-    ListItem(id: 4, value: "Gwarancja"),
-    ListItem(id: 5, value: "Zadatek"),
-    ListItem(id: 6, value: "Gaming"),
-]
-
-
-
-struct AddView: View {
+struct SellView: View {
     @StateObject var cameraViewModel = CameraViewModel()
     var body: some View {
             VStack {
@@ -71,13 +52,20 @@ struct AddView: View {
                             keyPath: \.bikeStatus)
                     )
                 )
+                SelectionLabel(
+                    text: cameraViewModel.salePrice == nil ? "" : "\(cameraViewModel.salePrice!)",
+                    title: "Cena",
+                    icon: "banknote",
+                    placeholder: "Cena",
+                    hasBorder: true
+                )
                 Button(action: {}) {
                     Text("Dodaj")
                         .font(.headline)
                         .frame(maxWidth: .infinity, maxHeight: 44, alignment: .init(horizontal: .center, vertical: .center))
                 }
             }
-            .navigationTitle("Dodaj rower")
+            .navigationTitle("Sprzedaj rower")
             .navigationBarTitleDisplayMode(.inline)
             .padding(.horizontal)
     }
@@ -85,6 +73,6 @@ struct AddView: View {
 
 #Preview {
     NavigationStack {
-        AddView()
+        SellView()
     }
 }

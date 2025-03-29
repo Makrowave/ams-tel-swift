@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct HomeView: View {
+    @ObservedObject var userSettings = UserSettings.GetUserSettings()
     var body: some View {
         NavigationView {
             VStack {
@@ -20,16 +21,16 @@ struct HomeView: View {
                     HStack {
                         Image(systemName: "building.fill")
                             .frame(width: 20)
-                        Text("Sklep 1")
+                        Text(userSettings.defaultUserLocation?.value ?? "Nie wybrano")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 20)
                 VStack {
                     ActionButton(destination: AnyView(AddView()), img: "plus", text: "Dodaj rower", color: .blue, hasBorder: true)
-                    ActionButton(destination: AnyView(AddView()), img: "banknote.fill", text: "Sprzedaj rower", color: .green, hasBorder: true)
-                    ActionButton(destination: AnyView(AddView()), img: "arrow.right", text: "Przenieś rower", color: .orange, hasBorder: true)
-                    ActionButton(destination: AnyView(AddView()), img: "shippingbox", text: "Złóż rower", color: .yellow, hasBorder: true)
+                    ActionButton(destination: AnyView(SellView()), img: "banknote.fill", text: "Sprzedaj rower", color: .green, hasBorder: true)
+                    ActionButton(destination: AnyView(MoveView()), img: "arrow.right", text: "Przenieś rower", color: .orange, hasBorder: true)
+                    ActionButton(destination: AnyView(AssembleView()), img: "shippingbox", text: "Złóż rower", color: .yellow, hasBorder: true)
                 }
                 .padding(.horizontal, 20)
             }
