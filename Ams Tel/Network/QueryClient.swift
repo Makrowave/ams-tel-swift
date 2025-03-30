@@ -15,7 +15,7 @@ class QueryClient: ObservableObject {
         _baseUrl = baseUrl
     }
     private static var _instance: QueryClient?
-    public static func GetQueryClient(_ baseUrl: String = "http://localhost") -> QueryClient {
+    public static func GetQueryClient(_ baseUrl: String = "http://localhost:5001") -> QueryClient {
         if(_instance == nil) {
             _instance = QueryClient(baseUrl)
         }
@@ -24,7 +24,7 @@ class QueryClient: ObservableObject {
     
     public func setBaseUrl(_ baseUrl: String) {
         for query in queries {
-            try? query.setBaseUrl(baseUrl)
+            query.setBaseUrl(baseUrl)
         }
         _baseUrl = baseUrl
     }
@@ -37,17 +37,39 @@ class QueryClient: ObservableObject {
         return query
     }
     
-    public func createQuery<T: QueryProtocol>(
+    public func backgroundPause(_ queryKeys: [[String]]) {
+        for query in queries {
+            if(queryKeys.contains(query.queryKey) && query.pauseInBackground) {
+                query.pause()
+            }
+        }
+    }
+    
+    public func backgroundResume(_ queryKeys: [[String]]) {
+        for query in queries {
+            if(queryKeys.contains(query.queryKey) && query.pauseInBackground) {
+                query.resume()
+            }
+        }
+    }
+    
+    public func createAndGetQuery<T: QueryProtocol>(
         queryKey: [String],
         url: String,
         interval: Int = 0,
         isStopped: Bool = false,
-        template: T? = nil
-    ) {
-        let query = try? T(queryKey: queryKey, url: url, baseUrl: _baseUrl, interval: interval, isStopped: isStopped)
-        if(query != nil) {
-            queries.append(query!)
+        pauseInBackgroud: Bool = true,
+        template: T
+    ) -> T {
+        //If query exists return it
+        let foundQuery = findQuery(queryKey: queryKey)
+        if(foundQuery != nil) {
+            return foundQuery as! T
         }
+        //If not create it
+        let query = T(queryKey: queryKey, url: url, baseUrl: _baseUrl, interval: interval, isStopped: isStopped, pauseInBackground: pauseInBackgroud)
+        queries.append(query)
+        return query
     }
     
     private func findQuery(queryKey: [String]) -> (any QueryProtocol)? {
@@ -76,6 +98,7 @@ class Query<T: Codable>: QueryProtocol {
         _interval = 0
         _timer = nil
         error = nil
+        pauseInBackground = true
     }
     
     @Published public var isLoading: Bool = true
@@ -86,34 +109,37 @@ class Query<T: Codable>: QueryProtocol {
     private var _url: String
     private var _baseUrl: String
     
-    @Published public var isStopped: Bool
+    public var isStopped: Bool
     private var _interval: Int
     private var _timer: Timer?
+    public var pauseInBackground: Bool
     
     @Published public var error: String?
     
-    required public init(queryKey: [String], url: String, baseUrl: String, interval: Int, isStopped: Bool) throws {
-        
+    required internal init(
+        queryKey: [String],
+        url: String,
+        baseUrl: String,
+        interval: Int,
+        isStopped: Bool,
+        pauseInBackground: Bool
+    ) {
         self.queryKey = queryKey
-        guard URL(string: baseUrl + url) != nil else {
-            throw QueryError.invalidURL
-        }
         _url = url
         _baseUrl = baseUrl
-        guard interval >= 0 else {
-            throw QueryError.negativeTimerInterval
+        if(interval <= 0) {
+            _interval = 0
+        } else {
+            _interval = interval
         }
-        _interval = interval
         self.isStopped = isStopped
+        self.pauseInBackground = pauseInBackground
         if( !isStopped && !(_interval == 0)) {
             _timer = createTimer()
         }
     }
     
-    public func setBaseUrl(_ baseUrl: String) throws {
-        guard URL(string: _baseUrl + _url) != nil else {
-            throw QueryError.invalidURL
-        }
+    public func setBaseUrl(_ baseUrl: String) {
         _baseUrl = baseUrl
     }
     //Used to fetch data
@@ -128,10 +154,13 @@ class Query<T: Codable>: QueryProtocol {
         }
         if(response.statusCode == 404) {
             setError(msg: "Nie znaleziono danych")
+            print("\(_baseUrl)/api\(_url) - \(response.statusCode)")
         } else if(response.statusCode == 401 || response.statusCode == 403) {
             setError(msg: "Nie przyznano dostępu do tych danych")
+            print("\(_baseUrl)/api\(_url) - \(response.statusCode)")
         } else if(response.statusCode == 400) {
             setError(msg: "Złe zapytanie")
+            print("\(_baseUrl)/api\(_url) - \(response.statusCode)")
         } else if(response.statusCode == 200) {
             //Handle data
             let decoder = JSONDecoder()
@@ -144,6 +173,7 @@ class Query<T: Codable>: QueryProtocol {
                 setError(msg: "Nastąpił problem z danymi")
             }
         } else if(response.statusCode/100 == 4 || response.statusCode/100 == 5){
+            print("\(_baseUrl)/api\(_url) - \(response.statusCode)")
             setError(msg: "Nastąpił nieoczekiwany błąd")
         } else {
             
@@ -152,9 +182,15 @@ class Query<T: Codable>: QueryProtocol {
     
     //Gets response and handles network errors
     private func getResponse() async -> (Data?, URLResponse?) {
-        let url = URL(string: _baseUrl + _url)!
+        let url = URL(string: _baseUrl + "/api" + _url)
+        
+        if(url == nil) {
+            setError(msg: "Niepoprawny adres serwera")
+            return (nil as Data?, nil as URLResponse?)
+        }
+        
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.data(from: url!)
             return (data, response)
         } catch {
             setError(msg: "Nastąpił problem z połączeniem")
@@ -186,8 +222,14 @@ class Query<T: Codable>: QueryProtocol {
         _timer = nil
         isStopped = true
     }
-    public func createTimer() -> Timer {
-        return Timer.scheduledTimer(withTimeInterval: TimeInterval(_interval), repeats: true) {_ in
+    public func createTimer() -> Timer? {
+        if(_interval == 0) {
+            return nil
+        }
+        return Timer.scheduledTimer(
+            withTimeInterval: TimeInterval((Double(_interval))/1000.0),
+            repeats: true
+        ) {_ in
             Task {
                 await self.fetch()
             }
@@ -206,8 +248,11 @@ protocol QueryProtocol: ObservableObject {
     var error: String? {get}
     var isStopped: Bool {get}
     var queryKey: [String] {get}
-    func setBaseUrl(_ baseUrl: String) throws
-    init(queryKey: [String], url: String, baseUrl: String, interval: Int, isStopped: Bool) throws
+    var pauseInBackground: Bool {get set}
+    func pause()
+    func resume()
+    func setBaseUrl(_ baseUrl: String)
+    init(queryKey: [String], url: String, baseUrl: String, interval: Int, isStopped: Bool, pauseInBackground: Bool)
     init()
 }
 
